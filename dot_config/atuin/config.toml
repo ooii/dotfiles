@@ -1,0 +1,36 @@
+# ~/.config/atuin/config.toml
+# Ctrl-R opens atuin with the current directory as the filter by default.
+# Cycle filter modes with Ctrl-R again (global, host, session, directory, workspace).
+
+## Default filter mode for interactive search (Ctrl-R)
+filter_mode = "directory"
+
+## Alternative: shell-up-key uses global by default
+filter_mode_shell_up_key_binding = "global"
+
+## UI
+style = "compact"
+inline_height = 20
+show_preview = true
+show_help = true
+show_tabs = true
+enter_accept = true
+
+## Keymap — "emacs" enables Ctrl+U (clear line), Ctrl+A/E (begin/end),
+## Ctrl+W (delete word back), etc. inside the search TUI
+keymap_mode = "emacs"
+
+## Behaviour
+update_check = false
+search_mode = "fuzzy"
+
+## Sync — uncomment and set server_address to your own self-hosted instance
+## to enable cross-machine history sync.
+# auto_sync = true
+# sync_frequency = "5m"
+# sync_address = "https://atuin.your-domain.example"
+
+## Don't record commands starting with a space
+history_filter = [
+  "^ ",
+]

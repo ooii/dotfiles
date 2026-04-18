@@ -1,0 +1,24 @@
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
+ENV TERM=xterm-256color
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      curl git sudo locales ca-certificates tzdata zsh tmux \
+      unzip xz-utils file \
+    && locale-gen en_US.UTF-8 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Non-root user with passwordless sudo so the install script can apt-get install
+RUN useradd -m -s /bin/zsh -G sudo farid \
+    && echo 'farid ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/99-farid
+
+USER farid
+WORKDIR /home/farid
+
+# Pre-create directories so bind-mounts work cleanly
+RUN mkdir -p /home/farid/.local/bin /home/farid/.local/share /home/farid/.config
+
+CMD ["/bin/zsh", "-l"]

@@ -1,0 +1,218 @@
+#!/usr/bin/env bash
+# Installs all binaries needed by the dotfiles.
+# Re-runs automatically whenever this script changes (run_onchange_).
+#
+# Strategy:
+#   - macOS:  Homebrew (install brew first if missing)
+#   - Linux:  apt for what's packaged, GitHub release binaries for what isn't
+#
+# Robustness: individual tool failures log a warning and continue.
+# Only a catastrophic setup error (e.g. no network at all) stops the script.
+
+set -uo pipefail        # NOTE: no -e; we handle errors explicitly per step
+
+OS="{{ .chezmoi.os }}"
+ARCH="{{ .chezmoi.arch }}"
+log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
+ok()   { printf '\033[1;32m  ✓\033[0m %s\n' "$*"; }
+warn() { printf '\033[1;33m  !\033[0m %s\n' "$*" >&2; }
+err()  { printf '\033[1;31m  ✗\033[0m %s\n' "$*" >&2; }
+
+FAILED_TOOLS=()
+
+# =============================================================================
+# macOS
+# =============================================================================
+install_macos() {
+  if ! command -v brew >/dev/null 2>&1; then
+    log "Installing Homebrew"
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || {
+      err "Homebrew install failed"; return 1
+    }
+    if   [[ -d /opt/homebrew ]]; then eval "$(/opt/homebrew/bin/brew shellenv)"
+    elif [[ -d /usr/local/Homebrew ]]; then eval "$(/usr/local/bin/brew shellenv)"
+    fi
+  fi
+
+  log "Installing packages via Homebrew"
+  brew install --quiet \
+    zsh tmux neovim \
+    starship atuin zoxide direnv fzf mise \
+    eza bat ripgrep fd git-delta lazygit \
+    jq yq gh || warn "Some Homebrew packages failed"
+
+  # fzf shell integration
+  local fzf_prefix
+  fzf_prefix="$(brew --prefix 2>/dev/null)/opt/fzf"
+  [[ -x "$fzf_prefix/install" ]] && \
+    "$fzf_prefix/install" --key-bindings --completion --no-update-rc --no-bash --no-fish >/dev/null 2>&1 || true
+}
+
+# =============================================================================
+# Linux — GitHub release helper
+# =============================================================================
+#
+# Args: repo  asset-regex  binary-name
+# Returns: 0 on install or already present, 1 on failure (but never kills script)
+gh_install() {
+  local repo="$1" pattern="$2" binname="$3"
+  local target="$HOME/.local/bin/$binname"
+
+  # Already installed?
+  if [[ -x "$target" ]] || command -v "$binname" >/dev/null 2>&1; then
+    ok "$binname already installed"
+    return 0
+  fi
+
+  log "Installing $binname from github.com/$repo"
+
+  # 1. Fetch release JSON
+  local api="https://api.github.com/repos/${repo}/releases/latest"
+  local json
+  json=$(curl -fsSL --max-time 20 "$api" 2>/dev/null) || {
+    warn "$binname: API request failed (network / rate limit?)"
+    FAILED_TOOLS+=("$binname")
+    return 1
+  }
+
+  # Detect rate limit response
+  if echo "$json" | grep -q '"message":\s*"API rate limit'; then
+    warn "$binname: GitHub API rate limit hit. Either wait ~1h or export GITHUB_TOKEN."
+    FAILED_TOOLS+=("$binname")
+    return 1
+  fi
+
+  # 2. Extract URL (use || true to survive grep's no-match exit)
+  local url
+  url=$(printf '%s' "$json" \
+        | grep -oP '"browser_download_url":\s*"\K[^"]+' \
+        | { grep -E "$pattern" || true; } \
+        | head -n1)
+  if [[ -z "$url" ]]; then
+    warn "$binname: no asset matching /$pattern/"
+    # Show what assets ARE available, to help debug
+    local available
+    available=$(printf '%s' "$json" | grep -oP '"browser_download_url":\s*"\K[^"]+' | head -5)
+    [[ -n "$available" ]] && warn "  First available assets:\n$(printf '%s' "$available" | sed 's/^/    /')"
+    FAILED_TOOLS+=("$binname")
+    return 1
+  fi
+
+  # 3. Download + extract
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  if ! curl -fsSL --max-time 60 "$url" -o "$tmpdir/pkg"; then
+    warn "$binname: download failed ($url)"
+    rm -rf "$tmpdir"; FAILED_TOOLS+=("$binname"); return 1
+  fi
+
+  case "$url" in
+    *.tar.gz|*.tgz) tar -xzf "$tmpdir/pkg" -C "$tmpdir" 2>/dev/null ;;
+    *.tar.xz)       tar -xJf "$tmpdir/pkg" -C "$tmpdir" 2>/dev/null ;;
+    *.zip)          unzip -q "$tmpdir/pkg" -d "$tmpdir" 2>/dev/null ;;
+    *)              cp "$tmpdir/pkg" "$tmpdir/$binname"; chmod +x "$tmpdir/$binname" ;;
+  esac
+
+  # 4. Locate and install the binary
+  local found
+  found=$(find "$tmpdir" -type f -name "$binname" 2>/dev/null | head -n1)
+  if [[ -z "$found" ]]; then
+    warn "$binname: binary not found inside archive"
+    rm -rf "$tmpdir"; FAILED_TOOLS+=("$binname"); return 1
+  fi
+
+  mkdir -p "$HOME/.local/bin"
+  chmod +x "$found"
+  mv "$found" "$target"
+  rm -rf "$tmpdir"
+  ok "Installed $binname → $target"
+}
+
+# =============================================================================
+# Linux
+# =============================================================================
+install_linux() {
+  local ghArch
+  case "$ARCH" in
+    amd64|x86_64)  ghArch="x86_64" ;;
+    arm64|aarch64) ghArch="aarch64" ;;
+    *)             ghArch="$ARCH" ;;
+  esac
+  log "Detected arch: $ghArch"
+
+  # --- apt packages -----------------------------------------------------------
+  if command -v apt-get >/dev/null 2>&1; then
+    log "Installing apt packages"
+    export DEBIAN_FRONTEND=noninteractive
+    local SUDO=""; command -v sudo >/dev/null 2>&1 && SUDO="sudo -n"
+    $SUDO apt-get update -qq || warn "apt update failed"
+    $SUDO apt-get install -y --no-install-recommends \
+      zsh tmux git curl ca-certificates unzip xz-utils file \
+      build-essential pkg-config \
+      neovim \
+      fzf ripgrep fd-find bat jq \
+      || warn "Some apt packages failed to install"
+
+    # Debian/Ubuntu rename these — symlink to expected names
+    mkdir -p "$HOME/.local/bin"
+    command -v batcat >/dev/null 2>&1 && ln -sf "$(command -v batcat)" "$HOME/.local/bin/bat"
+    command -v fdfind >/dev/null 2>&1 && ln -sf "$(command -v fdfind)" "$HOME/.local/bin/fd"
+  fi
+
+  # --- GitHub releases --------------------------------------------------------
+  # Patterns use (gnu|musl) alternation so aarch64 (often musl-only) works too
+  log "Installing tools from GitHub releases"
+  gh_install "starship/starship"      "${ghArch}-unknown-linux-(gnu|musl)\.tar\.gz$"  "starship"
+  gh_install "atuinsh/atuin"          "${ghArch}-unknown-linux-(gnu|musl)\.tar\.gz$"  "atuin"
+  gh_install "ajeetdsouza/zoxide"     "${ghArch}-unknown-linux-musl\.tar\.gz$"        "zoxide"
+  gh_install "eza-community/eza"      "${ghArch}-unknown-linux-(gnu|musl)\.tar\.gz$"  "eza"
+  gh_install "dandavison/delta"       "${ghArch}-unknown-linux-(gnu|musl)\.tar\.gz$"  "delta"
+
+  # lazygit uses "Linux_x86_64" / "Linux_arm64"
+  local lgArch="$ghArch"
+  [[ "$lgArch" == "aarch64" ]] && lgArch="arm64"
+  gh_install "jesseduffield/lazygit"  "Linux_${lgArch}\.tar\.gz"                      "lazygit"
+
+  # --- direnv -----------------------------------------------------------------
+  if ! command -v direnv >/dev/null 2>&1; then
+    log "Installing direnv"
+    curl -sfL https://direnv.net/install.sh | bash \
+      || { warn "direnv install failed"; FAILED_TOOLS+=("direnv"); }
+  else
+    ok "direnv already installed"
+  fi
+
+  # --- mise -------------------------------------------------------------------
+  if ! command -v mise >/dev/null 2>&1; then
+    log "Installing mise"
+    curl -fsSL https://mise.run | sh \
+      || { warn "mise install failed"; FAILED_TOOLS+=("mise"); }
+  else
+    ok "mise already installed"
+  fi
+}
+
+# =============================================================================
+# Dispatch
+# =============================================================================
+case "$OS" in
+  darwin) install_macos ;;
+  linux)  install_linux ;;
+  *)      err "Unsupported OS: $OS"; exit 1 ;;
+esac
+
+# =============================================================================
+# Summary
+# =============================================================================
+if [[ "$SHELL" != *"zsh"* ]]; then
+  ZSH_PATH="$(command -v zsh || true)"
+  [[ -n "$ZSH_PATH" ]] && log "Default shell is $SHELL — to switch, run:  chsh -s $ZSH_PATH"
+fi
+
+if (( ${#FAILED_TOOLS[@]} > 0 )); then
+  warn "The following tools were not installed: ${FAILED_TOOLS[*]}"
+  warn "Dotfiles will still apply; these features will be unavailable until fixed."
+fi
+
+ok "Tool installation complete."
+exit 0

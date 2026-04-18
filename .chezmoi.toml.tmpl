@@ -1,0 +1,15 @@
+{{- /* Questions asked on first `chezmoi init`. Answers go into ~/.config/chezmoi/chezmoi.toml */ -}}
+{{- $email := promptStringOnce . "email" "Email for git" "farid@akal.at" -}}
+{{- $name := promptStringOnce . "name" "Full name for git" "Farid" -}}
+{{- $hostnameOverride := promptStringOnce . "hostname_override" "Override hostname (leave empty to use system hostname)" "" -}}
+
+[data]
+    email = {{ $email | quote }}
+    name = {{ $name | quote }}
+    hostname_override = {{ $hostnameOverride | quote }}
+
+[diff]
+    pager = "delta"
+
+[edit]
+    command = "nvim"

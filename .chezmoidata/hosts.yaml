@@ -1,0 +1,14 @@
+# Optional per-host overrides. By default, color is auto-derived from the
+# hostname hash (see dot_config/starship.toml.tmpl). Only add entries here
+# when you want to pin a specific machine to a specific color, or tag it
+# with a role you want to read from templates.
+#
+# Example:
+#   hosts:
+#     mbp-farid:
+#       color: "bright-green"
+#       role: "laptop"
+#     proliant:
+#       role: "homelab"
+
+hosts: {}
