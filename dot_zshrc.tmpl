@@ -61,12 +61,6 @@ bindkey '^[[1;3C' forward-word           # Option+Right (iTerm2 default)
 bindkey '^W'      backward-kill-word     # Ctrl+W
 bindkey '^U'      kill-whole-line        # Ctrl+U — wipes the ENTIRE line
 
-# Arrow-based substring search: type "git " then Up/Down to cycle through
-# past commands starting with "git ". Loaded by zsh-history-substring-search.
-bindkey '^[[A' history-substring-search-up      # Up arrow
-bindkey '^[[B' history-substring-search-down    # Down arrow
-bindkey '^P'   history-substring-search-up      # Ctrl+P (fallback)
-bindkey '^N'   history-substring-search-down    # Ctrl+N (fallback)
 
 # ─── zinit (plugin manager) ───────────────────────────────────────────────────
 ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
@@ -84,16 +78,23 @@ source "${ZINIT_HOME}/zinit.zsh"
 #   4. zsh-completions
 # We enforce the order with wait'0a', '0b', '0c' suffixes.
 
-# Stage a — compinit + fzf-tab
+# compinit — run early so compdef is available for gh, terraform, etc.
+autoload -Uz compinit && compinit -C
+
+# Stage a — fzf-tab (must come after compinit)
 zinit wait'0a' lucid for \
-  atinit"ZINIT[COMPINIT_OPTS]=-C; zicompinit; zicdreplay" \
     Aloxaf/fzf-tab
 
 # Stage b — widget-wrapping plugins (must come after fzf-tab)
+# history-substring-search bindings go in atload so the widget exists first.
 zinit wait'0b' lucid for \
   zdharma-continuum/fast-syntax-highlighting \
   zsh-users/zsh-autosuggestions \
-  zsh-users/zsh-history-substring-search
+  atload"bindkey '^[[A' history-substring-search-up;
+         bindkey '^[[B' history-substring-search-down;
+         bindkey '^P'   history-substring-search-up;
+         bindkey '^N'   history-substring-search-down" \
+    zsh-users/zsh-history-substring-search
 
 # Stage c — extra completions (registered after everything else)
 zinit wait'0c' lucid blockf atpull'zinit creinstall -q .' for \
@@ -144,7 +145,7 @@ alias tn='tmux new -s'
 
 # ─── Completions for CLIs that provide their own ──────────────────────────────
 command -v gh         >/dev/null 2>&1 && eval "$(gh completion -s zsh)"
-command -v terraform  >/dev/null 2>&1 && complete -o nospace -C terraform terraform
+command -v terraform  >/dev/null 2>&1 && autoload -U +X bashcompinit && bashcompinit && complete -o nospace -C terraform terraform
 
 # ─── Auto-venv on cd (Python) ─────────────────────────────────────────────────
 # Sources venv/bin/activate or .venv/bin/activate when entering a project,
