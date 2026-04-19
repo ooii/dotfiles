@@ -36,7 +36,7 @@ install_macos() {
 
   log "Installing packages via Homebrew"
   brew install --quiet \
-    zsh tmux neovim \
+    chezmoi zsh tmux neovim \
     starship atuin zoxide direnv fzf mise \
     eza bat ripgrep fd git-delta lazygit \
     jq yq gh || warn "Some Homebrew packages failed"
