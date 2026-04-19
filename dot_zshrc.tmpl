@@ -61,6 +61,13 @@ bindkey '^[[1;3C' forward-word           # Option+Right (iTerm2 default)
 bindkey '^W'      backward-kill-word     # Ctrl+W
 bindkey '^U'      kill-whole-line        # Ctrl+U — wipes the ENTIRE line
 
+# Arrow-based substring search: type "git " then Up/Down to cycle through
+# past commands starting with "git ". Loaded by zsh-history-substring-search.
+bindkey '^[[A' history-substring-search-up      # Up arrow
+bindkey '^[[B' history-substring-search-down    # Down arrow
+bindkey '^P'   history-substring-search-up      # Ctrl+P (fallback)
+bindkey '^N'   history-substring-search-down    # Ctrl+N (fallback)
+
 # ─── zinit (plugin manager) ───────────────────────────────────────────────────
 ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
 if [[ ! -d "$ZINIT_HOME" ]]; then
@@ -69,17 +76,28 @@ if [[ ! -d "$ZINIT_HOME" ]]; then
 fi
 source "${ZINIT_HOME}/zinit.zsh"
 
-# Plugins — turbo mode = loaded lazily after first prompt
-# (zsh-autosuggestions self-registers via precmd; no atload needed)
-zinit wait lucid for \
-  atinit"ZINIT[COMPINIT_OPTS]=-C; zicompinit; zicdreplay" \
-    zdharma-continuum/fast-syntax-highlighting \
-    zsh-users/zsh-autosuggestions \
-  blockf atpull'zinit creinstall -q .' \
-    zsh-users/zsh-completions
+# Plugins — turbo mode (lazy loaded after first prompt).
+# CRITICAL ORDER (per fzf-tab and fast-syntax-highlighting docs):
+#   1. compinit
+#   2. fzf-tab   — must come AFTER compinit, BEFORE widget-wrapping plugins
+#   3. fast-syntax-highlighting, autosuggestions, history-substring-search
+#   4. zsh-completions
+# We enforce the order with wait'0a', '0b', '0c' suffixes.
 
-zinit wait lucid for \
-  Aloxaf/fzf-tab
+# Stage a — compinit + fzf-tab
+zinit wait'0a' lucid for \
+  atinit"ZINIT[COMPINIT_OPTS]=-C; zicompinit; zicdreplay" \
+    Aloxaf/fzf-tab
+
+# Stage b — widget-wrapping plugins (must come after fzf-tab)
+zinit wait'0b' lucid for \
+  zdharma-continuum/fast-syntax-highlighting \
+  zsh-users/zsh-autosuggestions \
+  zsh-users/zsh-history-substring-search
+
+# Stage c — extra completions (registered after everything else)
+zinit wait'0c' lucid blockf atpull'zinit creinstall -q .' for \
+  zsh-users/zsh-completions
 
 # ─── Completion styling ───────────────────────────────────────────────────────
 zstyle ':completion:*' menu no
@@ -111,11 +129,47 @@ command -v eza >/dev/null 2>&1 && {
 }
 command -v bat  >/dev/null 2>&1 && alias cat='bat --paging=never --style=plain'
 command -v rg   >/dev/null 2>&1 && alias grep='rg'
+
+# Git
 alias g='git'
 alias gs='git status'
 alias gd='git diff'
 alias gl='git log --oneline --graph --decorate -20'
 alias lg='lazygit'
+
+# Tmux
+alias t='tmux'
+alias ta='tmux attach'
+alias tn='tmux new -s'
+
+# ─── Completions for CLIs that provide their own ──────────────────────────────
+command -v gh         >/dev/null 2>&1 && eval "$(gh completion -s zsh)"
+command -v terraform  >/dev/null 2>&1 && complete -o nospace -C terraform terraform
+
+# ─── Auto-venv on cd (Python) ─────────────────────────────────────────────────
+# Sources venv/bin/activate or .venv/bin/activate when entering a project,
+# deactivates when leaving. For more flexibility (AWS profiles, env vars,
+# secrets per project), consider migrating to direnv with .envrc files.
+_auto_venv() {
+  if [[ -f "venv/bin/activate" ]]; then
+    [[ "$VIRTUAL_ENV" != "$PWD/venv" ]] && source venv/bin/activate
+  elif [[ -f ".venv/bin/activate" ]]; then
+    [[ "$VIRTUAL_ENV" != "$PWD/.venv" ]] && source .venv/bin/activate
+  elif [[ -n "$VIRTUAL_ENV" ]]; then
+    # Left the project tree — deactivate if we're not inside another venv's tree
+    [[ "$PWD" != "$VIRTUAL_ENV"/* ]] && deactivate 2>/dev/null
+  fi
+}
+autoload -U add-zsh-hook
+add-zsh-hook chpwd _auto_venv
+_auto_venv   # run once on shell start
+
+# ─── Node / Python / Go / Rust versions — via mise ────────────────────────────
+# mise is activated earlier via `eval "$(mise activate zsh)"`. To use it:
+#   mise use node@lts           # pin Node LTS globally
+#   mise use node@20            # or in a project, creates .tool-versions
+#   mise use python@3.12        # same for Python
+# See: https://mise.jdx.dev/getting-started.html
 
 # ─── Local overrides (not versioned) ──────────────────────────────────────────
 [[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
