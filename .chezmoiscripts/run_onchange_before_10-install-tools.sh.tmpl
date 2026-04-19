@@ -171,7 +171,7 @@ install_linux() {
   # lazygit uses "Linux_x86_64" / "Linux_arm64"
   local lgArch="$ghArch"
   [[ "$lgArch" == "aarch64" ]] && lgArch="arm64"
-  gh_install "jesseduffield/lazygit"  "Linux_${lgArch}\.tar\.gz"                      "lazygit"
+  gh_install "jesseduffield/lazygit"  "[Ll]inux_${lgArch}\.tar\.gz"                    "lazygit"
 
   # --- direnv -----------------------------------------------------------------
   if ! command -v direnv >/dev/null 2>&1; then

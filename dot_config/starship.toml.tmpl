@@ -20,6 +20,7 @@
 
 # ─── Overall prompt layout ─────────────────────────────────────────────────────
 format = """
+${custom.dircount}\
 $username\
 $hostname\
 $directory\
@@ -122,6 +123,13 @@ format = "took [$duration]($style) "
 style = "yellow"
 
 # ─── Disabled ─────────────────────────────────────────────────────────────────
+# ─── Custom: directory depth ──────────────────────────────────────────────────
+[custom.dircount]
+command = 'pwd | sed "s|$HOME|~|" | tr -cd "/" | wc -c | tr -d " "'
+when = true
+format = "[$output]($style) "
+style = "dimmed cyan"
+
 [package]
 disabled = true
 [aws]
