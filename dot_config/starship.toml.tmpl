@@ -43,13 +43,12 @@ success_symbol = "[❯](bold green)"
 error_symbol = "[❯](bold red)"
 vimcmd_symbol = "[❮](bold green)"
 
-# ─── Hostname ─────────────────────────────────────────────────────────────────
+# ─── Hostname (use chezmoi's effective hostname, not the OS one) ──────────────
 [hostname]
 ssh_only = false
 ssh_symbol = " "
-format = "[$ssh_symbol$hostname]($style) "
+format = "[$ssh_symbol](bold {{ $color }})[{{ $hostname }}](bold {{ $color }}) "
 style = "bold {{ $color }}"
-trim_at = "."
 disabled = false
 
 # ─── Username ─────────────────────────────────────────────────────────────────
