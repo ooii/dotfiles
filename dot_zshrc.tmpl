@@ -103,6 +103,7 @@ zinit wait'0c' lucid blockf atpull'zinit creinstall -q .' for \
   zsh-users/zsh-completions
 
 # ─── Completion styling ───────────────────────────────────────────────────────
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
 zstyle ':completion:*' menu no
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
 zstyle ':fzf-tab:complete:cd:*' fzf-preview 'ls --color=always "$realpath" 2>/dev/null || eza --color=always "$realpath"'
