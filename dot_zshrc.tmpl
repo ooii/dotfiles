@@ -103,6 +103,10 @@ zinit wait'0c' lucid blockf atpull'zinit creinstall -q .' for \
   zsh-users/zsh-completions
 
 # ─── Completion styling ───────────────────────────────────────────────────────
+[[ -z "$LS_COLORS" ]] && {
+  command -v dircolors >/dev/null 2>&1 && eval "$(dircolors -b)" \
+    || export LS_COLORS='di=1;34:ln=36:so=35:pi=33:ex=32:bd=33;01:cd=33;01:su=31;01:sg=31;01:tw=34;01:ow=34;01'
+}
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
 zstyle ':completion:*' menu no
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
