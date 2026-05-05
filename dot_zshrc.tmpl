@@ -112,6 +112,8 @@ zstyle ':completion:*' menu no
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
 zstyle ':fzf-tab:complete:cd:*' fzf-preview 'ls --color=always "$realpath" 2>/dev/null || eza --color=always "$realpath"'
 zstyle ':fzf-tab:*' switch-group ',' '.'
+# Ctrl+U inside the completion menu → abort, so a second Ctrl+U clears the line
+zstyle ':fzf-tab:*' fzf-bindings 'ctrl-u:abort'
 
 # ─── Tool integrations ────────────────────────────────────────────────────────
 command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
