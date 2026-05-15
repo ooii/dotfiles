@@ -1,0 +1,6 @@
+# ~/.config/ghostty/config — managed by chezmoi
+#
+# Auto-install Ghostty's terminfo on remote machines over SSH and forward
+# the TERM env var, so colors / undercurl / OSC sequences keep working
+# without artefacts when ssh'ing.
+shell-integration-features = ssh-env,ssh-terminfo
