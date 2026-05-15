@@ -58,6 +58,8 @@ bindkey '^[f'     forward-word           # Option+F  / Option+Right
 bindkey '^[d'     kill-word              # Option+D  (forward kill word)
 bindkey '^[[1;3D' backward-word          # Option+Left  (iTerm2 default)
 bindkey '^[[1;3C' forward-word           # Option+Right (iTerm2 default)
+bindkey '^[[1;2D' backward-char          # Shift+Left  — avoid raw "D" on screen
+bindkey '^[[1;2C' forward-char           # Shift+Right — avoid raw "C" on screen
 bindkey '^A'      beginning-of-line      # Ctrl+A
 bindkey '^E'      end-of-line            # Ctrl+E
 bindkey '^K'      kill-line              # Ctrl+K — kill from cursor to end of line
