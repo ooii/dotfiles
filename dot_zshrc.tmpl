@@ -133,6 +133,19 @@ if command -v fzf >/dev/null 2>&1; then
   [[ -f /usr/share/doc/fzf/examples/completion.zsh   ]] && source /usr/share/doc/fzf/examples/completion.zsh
 fi
 
+# ─── Reset kitty keyboard protocol at the prompt (Ghostty/kitty) ──────────────
+# Some TUIs (atuin, fzf, nvim) enable the kitty keyboard protocol and don't
+# always pop it on exit — and a Ghostty split can leave the terminal encoder in
+# kitty mode while the shell is still in legacy mode. zsh's line editor doesn't
+# speak that protocol, so Ctrl+C & co. then print literal `…;5u` fragments.
+# Force legacy mode before every prompt: `\e[<u` pops the kitty stack, `\e[=0;1u`
+# zeroes all flags. Apps re-enable the protocol themselves when they need it.
+if [[ "$TERM" == xterm-ghostty || "$TERM" == xterm-kitty || -n "$GHOSTTY_RESOURCES_DIR" ]]; then
+  autoload -U add-zsh-hook
+  _reset_kitty_keyboard() { printf '\e[<u\e[=0;1u' }
+  add-zsh-hook precmd _reset_kitty_keyboard
+fi
+
 # ─── Aliases ──────────────────────────────────────────────────────────────────
 command -v eza >/dev/null 2>&1 && {
   alias ls='eza --group-directories-first --icons=auto'
