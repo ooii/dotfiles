@@ -146,6 +146,16 @@ if [[ "$TERM" == xterm-ghostty || "$TERM" == xterm-kitty || -n "$GHOSTTY_RESOURC
   add-zsh-hook precmd _reset_kitty_keyboard
 fi
 
+# ─── Reset mouse tracking at the prompt ───────────────────────────────────────
+# A TUI (nvim, lazygit, htop, fzf…) that crashes or exits badly can leave the
+# terminal's mouse reporting on. The shell doesn't consume those events, so every
+# trackpad move then prints coordinate garbage like `35;33;29M`. Disable all
+# tracking modes before each prompt; apps re-enable them when they start.
+# 1000/1002/1003 = X11/button/any-motion reporting, 1006/1015 = SGR/urxvt encoding.
+autoload -U add-zsh-hook
+_reset_mouse() { printf '\e[?1000l\e[?1002l\e[?1003l\e[?1006l\e[?1015l' }
+add-zsh-hook precmd _reset_mouse
+
 # ─── Aliases ──────────────────────────────────────────────────────────────────
 command -v eza >/dev/null 2>&1 && {
   alias ls='eza --group-directories-first --icons=auto'
