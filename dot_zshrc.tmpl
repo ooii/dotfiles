@@ -66,6 +66,12 @@ bindkey '^K'      kill-line              # Ctrl+K — kill from cursor to end of
 bindkey '^W'      backward-kill-word     # Ctrl+W
 bindkey '^U'      kill-whole-line        # Ctrl+U — wipes the ENTIRE line
 
+# ─── Paste behaviour ──────────────────────────────────────────────────────────
+# zsh highlights pasted text in reverse video by default (`paste=standout`),
+# which also hides the block cursor while it sits inside that region. Turn the
+# paste highlight off so pasted text looks normal and the cursor stays visible.
+zle_highlight=('paste:none')
+
 
 # ─── zinit (plugin manager) ───────────────────────────────────────────────────
 ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
