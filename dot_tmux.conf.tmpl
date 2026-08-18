@@ -22,7 +22,10 @@ set -g default-terminal "tmux-256color"
 set -as terminal-overrides ",*256col*:RGB"
 set -as terminal-overrides ',*:Smulx=\E[4::%p1%dm'
 set -g focus-events on
-set -sg escape-time 0
+# 0 would make tmux flush a lone ESC immediately, splitting meta sequences like
+# ESC DEL (Option+Backspace) into two keys — Escape, then Backspace. 10ms keeps
+# them together and is still well below the vim-lag threshold that motivates 0.
+set -sg escape-time 10
 set -g history-limit 100000
 set -g mouse on
 set -g base-index 1

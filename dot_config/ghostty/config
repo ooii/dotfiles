@@ -4,3 +4,15 @@
 # the TERM env var, so colors / undercurl / OSC sequences keep working
 # without artefacts when ssh'ing.
 shell-integration-features = ssh-env,ssh-terminfo
+
+# ─── Backward-kill-word: same bytes everywhere ────────────────────────────────
+# Claude Code (like nvim, fzf…) turns on the kitty keyboard protocol; zsh does
+# not (the precmd hook in .zshrc explicitly forces legacy mode). tmux, in turn,
+# downgrades kitty sequences back to legacy before handing them to the pane. So
+# the same physical key reaches an app under two different encodings depending
+# on whether tmux sits in the chain — which is why Option/Ctrl swap roles.
+# Pin the bytes at the terminal instead: both keys emit the legacy
+# meta-backspace sequence (ESC DEL = `^[^?`), which zsh, tmux and Claude Code
+# all understand, in every combination.
+keybind = alt+backspace=text:\x1b\x7f
+keybind = ctrl+backspace=text:\x1b\x7f
